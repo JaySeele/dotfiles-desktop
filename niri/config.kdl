@@ -1,0 +1,534 @@
+// ═════════════════════════════════════════════════════════════════════════
+//  niri 配置 —— Debian 家用服务器（内置 eDP-1 + 外接 DP-1）
+//  保存即热重载；改完可跑 `niri validate` 检查语法，`niri msg pick-window` 查 app-id
+// ═════════════════════════════════════════════════════════════════════════
+//
+//  分区（设备 → 布局 → 外观 → 会话 → 按键）：
+//    01  输入设备  input             键盘映射 / 触控板 / 鼠标 / 焦点跟随
+//    02  显示器    output            外接 DP-1（主）+ 内置 eDP-1（副）
+//    03  渲染      debug             指定渲染 GPU
+//    04  布局      layout            间距 / 列宽 / 焦点环 / 阴影 / 边距
+//    05  窗口规则  window-rule       通用规则在前，应用规则按 app-id 字母序在后
+//    06  动画      animations
+//    07  模糊      blur
+//    08  总览      overview
+//    09  光标      cursor
+//    10  杂项      prefer-no-csd / screenshot-path / hotkey-overlay / xwayland-satellite
+//    11  环境变量  environment
+//    12  开机自启  spawn-at-startup
+//    13  快捷键    binds             按功能分组，组内「左/右/上/下」成对排列
+//    14  DMS 配块  include           DMS 自动生成，必须放最后（include 会覆盖前面同名设置）
+// ═════════════════════════════════════════════════════════════════════════
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 01 · 输入设备 input
+// ─────────────────────────────────────────────────────────────────────────
+input {
+    keyboard {
+        xkb {
+            layout "us"
+
+            // Mac 键位（纯 xkb 三键重排）：
+            //   物理 Alt（空格左边）→ Ctrl    于是 Cmd+C / Cmd+V / Cmd+S 在浏览器、编辑器、终端里直接可用
+            //   物理 Win（中间）    → Alt     与 Mac 的 Option 位置一致
+            //   物理 Ctrl（左下角） → Super   niri 的 Mod 默认是 Super，窗口快捷键都落在这颗上
+            // 副作用：niri 的 Mod+ 快捷键从「空格左边」挪到了「左下角」。
+            options "ctrl:swap_lalt_lctl_lwin"
+        }
+
+        numlock
+    }
+
+    touchpad {
+        tap
+        natural-scroll
+    }
+
+    mouse {
+        accel-speed 0.0
+    }
+
+    focus-follows-mouse max-scroll-amount="0%"
+    workspace-auto-back-and-forth
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 02 · 显示器 output
+// ─────────────────────────────────────────────────────────────────────────
+
+// 外接屏 KTC H24T7（DP-1）作为主屏：放坐标原点并抢焦点，新窗口 / 工作区默认开在这里。
+output "DP-1" {
+    // 面板支持 2560x1440@180；线材 / 链路不稳会回退，可改 165 / 144
+    mode "2560x1440@184.998"
+    scale 1
+    position x=0 y=0
+    focus-at-startup
+}
+
+// 笔记本内置屏（eDP-1）作副屏，摆在外接屏右侧。
+// 想彻底关掉内置屏：取消下面 `// off` 的注释。
+// 当前用 1920x1200（16:10，远程访问省带宽）；要原生清晰度可改成 2560x1440@165.003。
+output "eDP-1" {
+    mode "1920x1200@165.003"
+    scale 1
+    position x=2560 y=0
+    // off
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 03 · 渲染 debug
+// ─────────────────────────────────────────────────────────────────────────
+
+// 强制用独显（Navi 22）渲染：外接屏 DP-1 物理接在独显上，
+// 这样避免「核显渲染 → 拷贝到独显输出」的跨 GPU 开销。
+// renderD128 = 独显 RX 6800M，renderD129 = 核显。
+debug {
+    render-drm-device "/dev/dri/renderD128"
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 04 · 布局 layout
+// ─────────────────────────────────────────────────────────────────────────
+layout {
+    // 窗口之间的缝隙宽度
+    gaps 10
+
+    // 新窗口默认占比：0.5 = 屏幕一半
+    default-column-width { proportion 0.5; }
+
+    // 预设宽度：1/4、1/3、1/2、2/3、全屏
+    preset-column-widths {
+        proportion 0.25
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        proportion 1.0
+    }
+
+    // 预设高度：1/3、1/2、2/3、全屏
+    preset-window-heights {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        proportion 1.0
+    }
+
+    // 居中
+    center-focused-column "never"
+    always-center-single-column
+
+    // 工作区背景色（transparent = 露出壁纸）
+    background-color "transparent"
+
+    // 聚焦光环
+    focus-ring {
+        off
+    }
+
+    // 阴影
+    shadow {
+        on
+        softness 10
+        spread 4
+        offset x=0 y=0
+        color "#00000070"
+    }
+
+    // 标签页指示条
+    tab-indicator {
+        active-color "#b6c7e7"
+        inactive-color "#374761"
+        urgent-color "#ffb4ab"
+    }
+
+    // 插入位置提示
+    insert-hint {
+        color "#b6c7e780"
+    }
+
+    // 四边边距（需要时再取消注释）
+    struts {
+        // left   64
+        // right  64
+        // top    64
+        // bottom 64
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 05 · 窗口规则 window-rule
+//
+// 规则按出现顺序匹配：通用规则写在前面，具体应用写在后面（后面的同名属性覆盖前面）。
+// 新增应用规则时，按 app-id 字母序插入下方「应用规则」里。
+// ─────────────────────────────────────────────────────────────────────────
+
+// ── 通用外观：圆角 + 毛玻璃（Nyxuri 风格）──
+window-rule {
+    geometry-corner-radius 12
+    clip-to-geometry true
+
+    // 边框是否铺底色：false = 只画边框（背景透明）
+    draw-border-with-background false
+
+    // 不透明度
+    opacity 0.9
+
+    // 背景效果：毛玻璃
+    background-effect {
+        blur true
+        xray false
+    }
+}
+
+// ── kitty 终端：打开即最大化、非聚焦时半透明 ──
+// ⚠️ niri 里多条 match 是「或」关系：这条规则实际对所有「非聚焦窗口」生效。
+//    若只想作用于 kitty，改成一行：match app-id="kitty" is-focused=false
+window-rule {
+    match app-id="kitty"
+    match is-focused=false
+
+    // 不透明度
+    opacity 0.9
+
+    // 打开时界面最大化
+    open-maximized true
+
+    // 打开即全屏（有博主说全屏后信息弹窗不显示，故关闭）
+    // open-fullscreen true
+
+    // 背景效果（保持全局毛玻璃，暂不单独覆盖）
+    background-effect {
+        // blur false
+    }
+}
+
+// ── 应用规则（按 app-id 字母序）──
+
+// mpv / imv / Loupe：播放器与看图工具浮动
+window-rule {
+    match app-id=r#"^(mpv|imv|org\.gnome\.Loupe)$"#
+    open-floating true
+    default-column-width { proportion 0.7; }
+}
+
+// Nautilus 文件管理器
+window-rule {
+    match app-id=r#"^org\.gnome\.Nautilus$"#
+    default-column-width { proportion 0.6; }
+}
+
+// pavucontrol 音量面板：浮动
+window-rule {
+    match app-id=r#"^org\.pulseaudio\.pavucontrol$"#
+    open-floating true
+}
+
+// scratchpad 下拉终端：浮动、0.6 × 0.6
+window-rule {
+    match app-id="scratchpad"
+    open-floating true
+    default-column-width { proportion 0.6; }
+    default-window-height { proportion 0.6; }
+}
+
+// 截图预览 / 取色器等小工具：浮动（按标题匹配，放最后）
+window-rule {
+    match title=r#"^(Save As|Open File|swappy|Flameshot)$"#
+    open-floating true
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 06 · 动画 animations
+// ─────────────────────────────────────────────────────────────────────────
+animations {
+    horizontal-view-movement {
+        spring damping-ratio=0.85 stiffness=423 epsilon=0.0001
+    }
+
+    overview-open-close {
+        spring damping-ratio=0.85 stiffness=800 epsilon=0.0001
+    }
+
+    window-close {
+        duration-ms 150
+        curve "ease-out-quad"
+    }
+
+    window-movement {
+        spring damping-ratio=0.75 stiffness=323 epsilon=0.0001
+    }
+
+    window-open {
+        duration-ms 150
+        curve "ease-out-expo"
+    }
+
+    window-resize {
+        spring damping-ratio=0.85 stiffness=423 epsilon=0.0001
+    }
+
+    workspace-switch {
+        spring damping-ratio=0.8 stiffness=523 epsilon=0.0001
+    }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 07 · 模糊 blur
+// ─────────────────────────────────────────────────────────────────────────
+blur {
+    passes 3
+    offset 2.3
+    noise 0.001
+    saturation 2
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 08 · 总览 overview
+// ─────────────────────────────────────────────────────────────────────────
+overview {
+    // 总览缩放（0 - 0.75）
+    zoom 0.65
+
+    // 总览时工作区背景色
+    backdrop-color "#1a1b26"
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 09 · 光标 cursor
+// ─────────────────────────────────────────────────────────────────────────
+cursor {
+    // 输入时隐藏光标
+    hide-when-typing
+
+    // 两秒钟不活动后隐藏光标
+    hide-after-inactive-ms 2000
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 10 · 杂项
+// ─────────────────────────────────────────────────────────────────────────
+
+// 不强制客户端自己画标题栏
+prefer-no-csd
+
+// 截图保存路径
+screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
+
+// 不显示启动时的快捷键俯览弹窗（Mod+Shift+/ 仍可手动打开）
+hotkey-overlay {
+    skip-at-startup
+}
+
+// X11 兼容：niri 会在有 X11 客户端时按需拉起 xwayland-satellite
+xwayland-satellite {
+    path "/usr/local/bin/xwayland-satellite"
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 11 · 环境变量 environment
+// ─────────────────────────────────────────────────────────────────────────
+environment {
+    // X11 兼容：Edge / QQ / 微信等走 XWayland 的程序需要 DISPLAY
+    DISPLAY ":0"
+
+    // 语言与区域
+    LANG "zh_CN.UTF-8"
+    LC_TIME "zh_CN.UTF-8"
+
+    // Qt：优先 Wayland，回退 xcb；主题交给 gtk3
+    QT_QPA_PLATFORM "wayland;xcb"
+    QT_QPA_PLATFORMTHEME "gtk3"
+    QT_WAYLAND_DISABLE_WINDOWDECORATION "1"
+
+    // 会话类型
+    XDG_CURRENT_DESKTOP "niri"
+    XDG_SESSION_TYPE "wayland"
+
+    // 输入法：只留 X11 兼容用的 XMODIFIERS；
+    // Wayland 下不要设 GTK_IM_MODULE / QT_IM_MODULE
+    XMODIFIERS "@im=fcitx"
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 12 · 开机自启 spawn-at-startup
+// ─────────────────────────────────────────────────────────────────────────
+
+// 壁纸：原命令是单字符串 "swaygb ... &"（二进制名拼错 swaybg→swaygb，且整串被当成一条命令），
+// 实际从未启动过；当前壁纸由 DMS 提供。要用 swaybg 就取消下面一行注释（可能与 DMS 壁纸冲突）。
+// spawn-at-startup "swaybg" "-i" "/home/soc/Pictures/Wallpapers/ROG.png" "-m" "fill"
+
+// 输入法
+spawn-at-startup "fcitx5" "-d"
+
+// 权限认证弹窗
+spawn-at-startup "lxpolkit"
+
+// oniri：工作区里只剩一个窗口时自动最大化
+spawn-at-startup "oniri"
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 13 · 快捷键 binds
+// ─────────────────────────────────────────────────────────────────────────
+binds {
+
+    // ── 帮助 / 总览 ──
+    Mod+Shift+Slash { show-hotkey-overlay; }
+    Mod+O { toggle-overview; }
+
+    // ── 启动应用 ──
+    Mod+Return { spawn "kitty"; }
+    Mod+Space { spawn "dms" "ipc" "call" "launcher" "toggle"; }
+    Mod+grave { spawn "~/.local/bin/niri-scratch"; }
+    Mod+Shift+C { spawn "dms" "ipc" "call" "dash" "toggle"; }
+    Mod+Shift+D { spawn "dms" "ipc" "call" "control-center" "toggle"; }
+    Mod+Shift+M { spawn "dms" "ipc" "call" "notifications" "toggleDoNotDisturb"; }
+    Mod+Shift+N { spawn "dms" "ipc" "call" "night" "toggle"; }
+    Mod+W { spawn "dms" "ipc" "call" "wallpaper" "next"; }
+    Mod+Alt+I { spawn "dms" "ipc" "call" "settings" "focusOrToggle"; }
+    Mod+X { spawn "dms" "ipc" "call" "powermenu" "toggle"; }
+
+    // ── 窗口 ──
+    Mod+Q { close-window; }
+    Mod+V { toggle-window-floating; }
+    Mod+Shift+V { switch-focus-between-floating-and-tiling; }
+    Mod+M { maximize-column; }
+    Mod+Shift+F { fullscreen-window; }
+    Mod+Ctrl+Shift+F { toggle-windowed-fullscreen; }
+    Mod+C { center-column; }
+    Mod+R { switch-preset-column-width; }
+    Mod+Shift+R { switch-preset-window-height; }
+    Mod+Ctrl+R { reset-window-height; }
+    Mod+Minus { set-column-width "-10%"; }
+    Mod+Equal { set-column-width "+10%"; }
+    Mod+Shift+Minus { set-window-height "-10%"; }
+    Mod+Shift+Equal { set-window-height "+10%"; }
+
+    // ── 焦点 ──
+    Mod+H { focus-column-left; }
+    Mod+Left { focus-column-left; }
+    Mod+L { focus-column-right; }
+    Mod+Right { focus-column-right; }
+    Mod+K { focus-window-up; }
+    Mod+Up { focus-window-up; }
+    Mod+J { focus-window-down; }
+    Mod+Down { focus-window-down; }
+
+    // ── 移动窗口 ──
+    Mod+Ctrl+H { move-column-left; }
+    Mod+Ctrl+Left { move-column-left; }
+    Mod+Ctrl+L { move-column-right; }
+    Mod+Ctrl+Right { move-column-right; }
+    Mod+Ctrl+K { move-window-up; }
+    Mod+Ctrl+Up { move-window-up; }
+    Mod+Ctrl+J { move-window-down; }
+    Mod+Ctrl+Down { move-window-down; }
+
+    // ── 列 ──
+    Mod+BracketLeft { consume-or-expel-window-left; }
+    Mod+BracketRight { consume-or-expel-window-right; }
+
+    // ── 工作区切换 ──
+    Mod+U { focus-workspace-down; }
+    Mod+Page_Down { focus-workspace-down; }
+    Mod+I { focus-workspace-up; }
+    Mod+Page_Up { focus-workspace-up; }
+    Mod+WheelScrollDown { focus-workspace-down; }
+    Mod+WheelScrollUp { focus-workspace-up; }
+
+    // 数字键直选工作区
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+
+    // ── 把窗口移到工作区 ──
+    Mod+Ctrl+U { move-column-to-workspace-down; }
+    Mod+Ctrl+Page_Down { move-column-to-workspace-down; }
+    Mod+Ctrl+I { move-column-to-workspace-up; }
+    Mod+Ctrl+Page_Up { move-column-to-workspace-up; }
+
+    Mod+Ctrl+1 { move-column-to-workspace 1; }
+    Mod+Ctrl+2 { move-column-to-workspace 2; }
+    Mod+Ctrl+3 { move-column-to-workspace 3; }
+    Mod+Ctrl+4 { move-column-to-workspace 4; }
+    Mod+Ctrl+5 { move-column-to-workspace 5; }
+    Mod+Ctrl+6 { move-column-to-workspace 6; }
+    Mod+Ctrl+7 { move-column-to-workspace 7; }
+    Mod+Ctrl+8 { move-column-to-workspace 8; }
+    Mod+Ctrl+9 { move-column-to-workspace 9; }
+
+    // ── 整个工作区上下移动 ──
+    Mod+Shift+U { move-workspace-down; }
+    Mod+Shift+Page_Down { move-workspace-down; }
+    Mod+Shift+I { move-workspace-up; }
+    Mod+Shift+Page_Up { move-workspace-up; }
+
+    // ── 显示器之间移动焦点 / 搬窗口 ──
+    Mod+Shift+H { focus-monitor-left; }
+    Mod+Shift+L { focus-monitor-right; }
+    Mod+Shift+K { focus-monitor-up; }
+    Mod+Shift+J { focus-monitor-down; }
+    Mod+Ctrl+Shift+H { move-column-to-monitor-left; }
+    Mod+Ctrl+Shift+L { move-column-to-monitor-right; }
+
+    // ── 截图（niri 内置：框选后空格保存）──
+    // Mod+Print { screenshot-window; }
+    // Mod+Shift+Print { screenshot-screen; }
+    Mod+A { screenshot; }
+
+    // ── 剪贴板历史 ──
+    Mod+Alt+V { spawn "dms" "ipc" "call" "clipboard" "toggle"; }
+
+    // ── 锁屏 / 关屏 ──
+    // 锁屏用 swaylock：DMS 自带锁屏在当前会话里解锁会失败（红屏）
+    Mod+Alt+L { spawn "swaylock" "-f"; }
+    // 万一锁屏进程挂了（红屏），锁屏状态下也能按这个重新拉起 swaylock
+    Mod+Alt+Shift+L allow-when-locked=true { spawn "swaylock" "-f"; }
+    Mod+Shift+P { power-off-monitors; }
+
+    // ── 音量 / 亮度 / 媒体键 ──
+    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"; }
+    XF86AudioMute allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
+    XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "set" "+10%"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "set" "10%-"; }
+    XF86AudioPlay { spawn "playerctl" "play-pause"; }
+    XF86AudioNext { spawn "playerctl" "next"; }
+    XF86AudioPrev { spawn "playerctl" "previous"; }
+
+    // ── 退出 niri ──
+    Mod+Shift+E { quit; }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// 14 · DMS 自动生成配块
+//
+// dms/*.kdl 由 DMS 生成，勿手改。include 是「按位置生效」的：
+// 写在最后 → 其中同名设置会覆盖上面手写的值，例如
+//   dms/layout.kdl  的 gaps 4 / 圆角 19 / blur offset 2.1 覆盖上面的 10 / 12 / 2.3
+//   dms/outputs.kdl 里 eDP-1 的 position x=0 与上面 x=2560 冲突
+// 想让手写值优先，就把对应 include 移到前面（或删掉）。
+// ─────────────────────────────────────────────────────────────────────────
+include "dms/outputs.kdl"
+include "dms/binds.kdl"
+include "dms/layout.kdl"
+include "dms/windowrules.kdl"

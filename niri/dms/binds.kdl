@@ -1,0 +1,3 @@
+binds {
+    Alt+A allow-when-locked=true { spawn "/usr/bin/flameshot" "gui"; }
+}
