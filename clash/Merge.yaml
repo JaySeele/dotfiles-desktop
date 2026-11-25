@@ -1,0 +1,14 @@
+# Profile Enhancement Merge Template for Clash Verge
+
+profile:
+  store-selected: true
+
+dns:
+  use-system-hosts: false
+
+# opencode.ai 的分流规则不写在这里！
+#
+# 本机 Clash Verge 是 2.5.2，**不支持 merge profile 的 `prepend-rules`**：
+# 写了不会进 rules 列表，而是被当成未知顶层键原样塞进生成的 clash-verge.yaml，
+# mihomo 不认识直接忽略 —— 规则静默失效（2026-10-01 实测踩到）。
+# 规则改在 profiles/Script.js 的 main() 里 `config.rules.unshift(...)`。

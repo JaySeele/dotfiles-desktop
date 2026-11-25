@@ -1,0 +1,22 @@
+# Clash Verge Rev local state and generated files
+logs/
+storages/
+backups/
+
+# Local profile registry may contain subscription URLs and tokens
+profiles.yaml
+
+# Remote/generated proxy profiles may contain UUIDs and passwords
+profiles/*remote*.yaml
+profiles/*.yaml
+!profiles/Merge.yaml
+
+# Local script backups
+*.bak*
+
+# Generic secret material
+.env
+.env.*
+*secret*
+*token*
+*credential*
