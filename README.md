@@ -4,8 +4,10 @@ niri（Debian Wayland 平铺窗口管理器）
 
 ## 安装 / 重建软链
 
+在仓库根目录执行（路径无关，仓库放哪都行）：
+
 ```bash
-~/Git/desktop/install.sh
+./install.sh
 ```
 
 只链 `niri`。`aerospace` 是存档配置（AeroSpace 未安装），不参与链接。
